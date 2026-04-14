@@ -1,0 +1,43 @@
+# ============================================================
+# AI-Powered Energy Consumption Forecasting System
+# Requirements File
+# ============================================================
+
+# --- Core Data Science ---
+pandas==2.1.4
+numpy==1.24.3
+scipy==1.11.4
+
+# --- Machine Learning ---
+scikit-learn==1.3.2
+xgboost==2.0.3
+joblib==1.3.2
+
+# --- Deep Learning ---
+tensorflow==2.15.0
+
+# --- Time Series ---
+statsmodels==0.14.1
+
+# --- Visualization ---
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.18.0
+
+# --- Web Framework ---
+flask==3.0.0
+flask-cors==4.0.0
+
+# --- Report Generation ---
+fpdf2==2.7.6
+
+# --- Utilities ---
+requests==2.31.0
+tqdm==4.66.1
+python-dotenv==1.0.0
+PyYAML==6.0.1
+
+# --- Jupyter Notebooks ---
+jupyter==1.0.0
+ipykernel==6.27.1
+nbformat==5.9.2
