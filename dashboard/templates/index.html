@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}⚡ Dashboard — Energy Forecasting{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+
+  <!-- Page Header -->
+  <div class="page-header fade-in">
+    <h1>Energy Intelligence Dashboard</h1>
+    <p>Real-time overview of household energy consumption, trends, and AI-powered insights</p>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card fade-in">
+      <div class="stat-icon">📦</div>
+      <div class="stat-label">Total Records</div>
+      <div class="stat-value" id="statRecords">{{ stats.total_records }}</div>
+      <div class="stat-unit">data points</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-label">Average Power</div>
+      <div class="stat-value" id="statAvg">{{ stats.avg_power }}</div>
+      <div class="stat-unit">mean active power</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">🔺</div>
+      <div class="stat-label">Peak Power</div>
+      <div class="stat-value" id="statMax">{{ stats.max_power }}</div>
+      <div class="stat-unit">maximum recorded</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">🔋</div>
+      <div class="stat-label">Total Energy</div>
+      <div class="stat-value" id="statEnergy">{{ stats.total_energy }}</div>
+      <div class="stat-unit">cumulative</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">📅</div>
+      <div class="stat-label">Date From</div>
+      <div class="stat-value" style="font-size:1.1rem">{{ stats.date_from }}</div>
+      <div class="stat-unit">dataset start</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">🚨</div>
+      <div class="stat-label">Anomalies</div>
+      <div class="stat-value" style="color:var(--accent-red)">{{ stats.anomaly_count }}</div>
+      <div class="stat-unit">events detected</div>
+    </div>
+  </div>
+
+  <!-- Main chart row -->
+  <div style="display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:20px">
+
+    <!-- Consumption time-series -->
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="card-title">⚡ Energy Consumption — Full History</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="rangeLabel" style="font-size:0.8rem;color:var(--text-muted)">365d</span>
+          <input type="range" id="rangeSlider" min="30" max="1460" value="365" step="30"
+                 style="width:120px" title="Adjust time range" />
+          <span class="badge badge-blue">Live</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:340px">
+          <div id="consumptionChart" style="height:100%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2 — Heatmap + Quick forecast -->
+  <div class="grid-2" style="margin-bottom:20px">
+
+    <!-- Heatmap -->
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="card-title">🕒 Load Profile Heatmap</span>
+        <span class="badge badge-purple">Seasonality</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:300px">
+          <div id="heatmapChart" style="height:100%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick forecast panel -->
+    <div class="card fade-in">
+      <div class="card-header">
+        <span class="card-title">🔮 Quick Forecast — 48h</span>
+        <div class="tab-group" style="width:auto">
+          <button class="tab-btn active" onclick="switchModel(this,'arima')">ARIMA</button>
+          <button class="tab-btn" onclick="switchModel(this,'xgboost')">XGBoost</button>
+          <button class="tab-btn" onclick="switchModel(this,'lstm')">LSTM</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="chart-container" style="height:260px">
+          <div id="quickForecastChart" style="height:100%"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:0.8rem;color:var(--text-muted)">
+            Dashed line = AI forecast &nbsp; | &nbsp; Shaded = 95% CI
+          </span>
+          <a href="/forecast" class="btn btn-ghost" style="font-size:0.8rem;padding:6px 12px">
+            Full Forecast →
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3 — Model metrics summary -->
+  <div class="card fade-in">
+    <div class="card-header">
+      <span class="card-title">🤖 Model Performance Summary</span>
+      <a href="/compare" class="btn btn-ghost" style="font-size:0.8rem;padding:6px 12px">
+        Full Comparison →
+      </a>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table id="metricsTable">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th data-tooltip="Mean Absolute Error — lower is better">MAE ↓</th>
+              <th data-tooltip="Root Mean Squared Error — lower is better">RMSE ↓</th>
+              <th data-tooltip="Mean Absolute Percentage Error">MAPE % ↓</th>
+              <th data-tooltip="Coefficient of Determination — higher is better">R² ↑</th>
+              <th data-tooltip="Adjusted R-squared">Adj R² ↑</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="metricsBody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page-wrapper -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Init charts ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderConsumptionChart('consumptionChart', 365);
+  renderHeatmap('heatmapChart');
+  renderForecastChart('quickForecastChart', 'xgboost', 48);
+  loadMetricsTable();
+  initRangeSlider('rangeSlider', 'rangeLabel', (days) => {
+    renderConsumptionChart('consumptionChart', days);
+  });
+});
+
+// ── Model tab switch ───────────────────────────────────────
+function switchModel(btn, model) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderForecastChart('quickForecastChart', model, 48);
+}
+
+// ── Metrics table ──────────────────────────────────────────
+async function loadMetricsTable() {
+  const tbody = document.getElementById('metricsBody');
+  try {
+    const metrics = await fetchJSON('/api/metrics');
+    const badges  = { ARIMA: 'badge-blue', XGBoost: 'badge-green', LSTM: 'badge-purple' };
+    const icons   = { ARIMA: '📈', XGBoost: '🌲', LSTM: '🧠' };
+
+    tbody.innerHTML = metrics.map((m, i) => `
+      <tr>
+        <td class="td-label">${icons[m.model] || '🤖'} ${m.model}</td>
+        <td>${m.MAE}</td>
+        <td>${m.RMSE}</td>
+        <td>${m.MAPE}%</td>
+        <td style="color:var(--accent-green)">${m.R2}</td>
+        <td style="color:var(--accent-cyan)">${m.Adj_R2}</td>
+        <td>
+          <span class="badge ${badges[m.model] || 'badge-blue'}">
+            ${i === 0 ? '✓ Trained' : '✓ Trained'}
+          </span>
+        </td>
+      </tr>
+    `).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);text-align:center">Run main.py to generate metrics</td></tr>';
+  }
+}
+</script>
+{% endblock %}

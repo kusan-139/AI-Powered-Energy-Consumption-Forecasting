@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}🚨 Anomalies — Energy Forecasting{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-header fade-in">
+    <h1>Anomaly Detection</h1>
+    <p>Z-score based detection of unusual energy consumption events.</p>
+  </div>
+
+  <!-- Alert summary -->
+  <div class="alert-box danger fade-in">
+    <span class="alert-icon">⚠</span>
+    <div>
+      <strong>Anomaly Detection Active</strong><br>
+      <span id="anomalySummary">Scanning energy data for unusual consumption patterns using Z-score threshold (|Z| > 3.0)…</span>
+    </div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="stats-grid" style="margin-bottom:20px">
+    <div class="stat-card fade-in">
+      <div class="stat-icon">🚨</div>
+      <div class="stat-label">Anomalies Detected</div>
+      <div class="stat-value" style="color:var(--accent-red)" id="anomalyCount">—</div>
+      <div class="stat-unit">total events (90 days)</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">📏</div>
+      <div class="stat-label">Detection Method</div>
+      <div class="stat-value" style="font-size:1rem">Z-Score</div>
+      <div class="stat-unit">threshold |Z| > 3.0</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">📅</div>
+      <div class="stat-label">Time Window</div>
+      <div class="stat-value" id="statsTimeWindow" style="font-size:1rem">All Time</div>
+      <div class="stat-unit">rolling analysis</div>
+    </div>
+    <div class="stat-card fade-in">
+      <div class="stat-icon">⚡</div>
+      <div class="stat-label">Detection Rate</div>
+      <div class="stat-value" id="detectionRate" style="font-size:1rem">—</div>
+      <div class="stat-unit">% of records flagged</div>
+    </div>
+  </div>
+
+  <!-- Anomaly chart -->
+  <div class="card fade-in" style="margin-bottom:20px">
+    <div class="card-header">
+      <span class="card-title">🔍 Power Consumption — Anomaly Overlay</span>
+      <div style="display:flex;gap:12px;align-items:center">
+        <select id="anomalyDaysFilter" style="padding:4px 8px;font-size:0.75rem;cursor:pointer" onchange="loadAnomalyPage(this.value)">
+          <option value="90">Last 90 Days</option>
+          <option value="365">Last 365 Days</option>
+          <option value="730">Last 2 Years</option>
+          <option value="1825">Last 5 Years</option>
+          <option value="0" selected>All Time</option>
+        </select>
+        <div style="display:flex;gap:8px">
+          <span class="badge badge-blue">● Normal</span>
+          <span class="badge badge-red">● Anomaly</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="height:380px" id="anomalyChart"></div>
+    </div>
+  </div>
+
+  <!-- Anomaly list table -->
+  <div class="card fade-in">
+    <div class="card-header">
+      <span class="card-title">📋 Anomaly Event Log</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="anomalyCountBadge" class="badge badge-red">0 events</span>
+        <button class="btn btn-ghost" style="font-size:0.8rem;padding:6px 12px" onclick="exportAnomalyCSV()">
+          📥 Export CSV
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table id="anomalyTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Timestamp</th>
+              <th>Power (kW)</th>
+              <th>Z-Score</th>
+              <th>Severity</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="anomalyTableBody">
+            <tr>
+              <td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">
+                <div class="loading-spinner">
+                  <div class="spinner"></div>
+                  <span>Scanning for anomalies…</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Methodology card -->
+  <div class="card fade-in" style="margin-top:20px">
+    <div class="card-header">
+      <span class="card-title">📘 Detection Methodology</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;font-size:0.88rem;color:var(--text-secondary);line-height:1.9">
+        <div>
+          <h3 style="font-size:0.9rem;color:var(--accent-blue);margin-bottom:8px">How It Works</h3>
+          <ol style="padding-left:18px">
+            <li>Compute mean (μ) and std deviation (σ) of power series</li>
+            <li>Calculate Z-score for each point: Z = (x − μ) / σ</li>
+            <li>Flag points where |Z| > 3.0 as anomalies</li>
+            <li>Classify by Z-score magnitude: Low / Medium / High / Critical</li>
+          </ol>
+        </div>
+        <div>
+          <h3 style="font-size:0.9rem;color:var(--accent-red);margin-bottom:8px">Anomaly Types</h3>
+          <ul style="padding-left:18px">
+            <li><strong>Spike</strong>: Sudden surge (EV charging, equipment fault)</li>
+            <li><strong>Drop</strong>: Sudden fall (outage, sensor failure)</li>
+            <li><strong>Sustained</strong>: Prolonged deviation from baseline</li>
+            <li><strong>Periodic</strong>: Unusual pattern on specific day/hour</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let anomalyDataCache = null;
+
+async function loadAnomalyPage(days = 0) {
+  // Ensure the dropdown stays in sync
+  const select = document.getElementById('anomalyDaysFilter');
+  if (select && select.value !== String(days)) select.value = days;
+
+  await renderAnomalyChart('anomalyChart', days);
+
+  try {
+    const data = await fetchJSON(`/api/anomalies?days=${days}`);
+    anomalyDataCache = data;
+
+    // Update stats
+    document.getElementById('anomalyCount').textContent = data.total_anomalies;
+    document.getElementById('anomalyCountBadge').textContent = `${data.total_anomalies} events`;
+    
+    const timeLabel = days > 0 ? `${days} Days` : 'All Time';
+    document.getElementById('statsTimeWindow').textContent = timeLabel;
+    
+    const rate = ((data.anomaly_timestamps.length / data.series_timestamps.length) * 100).toFixed(2);
+    document.getElementById('detectionRate').textContent = `${rate}%`;
+    document.getElementById('anomalySummary').textContent =
+      `Found ${data.total_anomalies} anomalous events in the selected time window (threshold |Z| > 3.0).`;
+
+    // Build table
+    const tbody = document.getElementById('anomalyTableBody');
+    if (data.anomaly_timestamps.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--accent-green);padding:24px">✓ No anomalies detected in this window</td></tr>';
+      return;
+    }
+
+    const rows = data.anomaly_timestamps.map((ts, i) => {
+      const val  = data.anomaly_values[i];
+      const z    = data.anomaly_zscores[i];
+      const absZ = Math.abs(z);
+      let severity, sevClass, type;
+
+      if (absZ > 6)       { severity = 'Critical'; sevClass = 'badge-red'; }
+      else if (absZ > 5)  { severity = 'High';     sevClass = 'badge-red'; }
+      else if (absZ > 4)  { severity = 'Medium';   sevClass = 'badge-purple'; }
+      else                { severity = 'Low';       sevClass = 'badge-blue'; }
+
+      type = val > 2 ? '⬆ Spike' : '⬇ Drop';
+
+      return `<tr>
+        <td style="color:var(--text-muted)">${i+1}</td>
+        <td>${ts}</td>
+        <td style="font-family:'JetBrains Mono'">${val.toFixed(4)}</td>
+        <td style="font-family:'JetBrains Mono';color:${absZ>5?'var(--accent-red)':'var(--text-primary)'}">
+          ${z.toFixed(2)}
+        </td>
+        <td><span class="badge ${sevClass}">${severity}</span></td>
+        <td style="color:var(--text-secondary)">${type}</td>
+      </tr>`;
+    });
+
+    tbody.innerHTML = rows.join('');
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function exportAnomalyCSV() {
+  if (!anomalyDataCache) return;
+  const rows = [['Timestamp', 'Power_kW', 'Z_Score']];
+  anomalyDataCache.anomaly_timestamps.forEach((ts, i) => {
+    rows.push([ts, anomalyDataCache.anomaly_values[i], anomalyDataCache.anomaly_zscores[i]]);
+  });
+  const csv  = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'anomaly_events.csv';
+  a.click();
+}
+
+document.addEventListener('DOMContentLoaded', loadAnomalyPage);
+</script>
+{% endblock %}

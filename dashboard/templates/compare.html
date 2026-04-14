@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}🏆 Compare Models — Energy Forecasting{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-header fade-in">
+    <h1>Model Comparison</h1>
+    <p>Head-to-head performance benchmarking: ARIMA vs XGBoost vs LSTM</p>
+  </div>
+
+  <!-- Leaderboard table -->
+  <div class="card fade-in" style="margin-bottom:20px">
+    <div class="card-header">
+      <span class="card-title">🥇 Performance Leaderboard</span>
+      <span class="badge badge-blue">Test Set: 20% hold-out</span>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Model</th>
+              <th data-tooltip="Mean Absolute Error">MAE ↓</th>
+              <th data-tooltip="Root Mean Squared Error">RMSE ↓</th>
+              <th data-tooltip="Mean Absolute Percentage Error">MAPE % ↓</th>
+              <th data-tooltip="Symmetric MAPE">SMAPE % ↓</th>
+              <th data-tooltip="R-squared — goodness of fit">R² ↑</th>
+              <th data-tooltip="Adjusted R-squared">Adj R² ↑</th>
+              <th>Winner</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in metrics %}
+            <tr>
+              <td style="font-weight:700;color:var(--accent-yellow)">
+                {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% else %}🥉{% endif %}
+                #{{ loop.index }}
+              </td>
+              <td class="td-label">
+                {% if m.model == 'LSTM' %}🧠
+                {% elif m.model == 'XGBoost' %}🌲
+                {% else %}📈{% endif %}
+                {{ m.model }}
+              </td>
+              <td>{{ m.MAE }}</td>
+              <td>{{ m.RMSE }}</td>
+              <td>{{ m.MAPE }}%</td>
+              <td>{{ m.SMAPE }}%</td>
+              <td style="color:var(--accent-green);font-weight:600">{{ m.R2 }}</td>
+              <td style="color:var(--accent-cyan);font-weight:600">{{ m.Adj_R2 }}</td>
+              <td>
+                {% if loop.index == 1 %}
+                <span class="badge badge-green">✓ Best</span>
+                {% else %}
+                <span class="badge" style="background:rgba(255,255,255,0.05);color:var(--text-muted)">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">
+                Run <code style="color:var(--accent-blue)">python main.py --mode train</code> to generate metrics
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="grid-2 fade-in" style="margin-bottom:20px">
+
+    <!-- Bar comparison -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📊 MAE / RMSE / MAPE Comparison</span>
+      </div>
+      <div class="card-body">
+        <div style="height:320px" id="comparisonChart"></div>
+      </div>
+    </div>
+
+    <!-- Radar chart -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🕸 Multi-Dimensional Capability Radar</span>
+        <span class="badge badge-purple">5 dimensions</span>
+      </div>
+      <div class="card-body">
+        <div style="height:320px" id="radarChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- R² bar - full width -->
+  <div class="card fade-in" style="margin-bottom:20px">
+    <div class="card-header">
+      <span class="card-title">📈 Adj R² Score — Goodness of Fit</span>
+      <span class="badge badge-green">Higher = Better</span>
+    </div>
+    <div class="card-body">
+      <div id="r2Bars">
+        {% for m in metrics %}
+        <div style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:0.9rem;font-weight:600">
+              {% if m.model == 'LSTM' %}🧠{% elif m.model == 'XGBoost' %}🌲{% else %}📈{% endif %}
+              {{ m.model }}
+            </span>
+            <span style="font-size:0.9rem;font-family:'JetBrains Mono';color:var(--accent-green)">
+              {{ m.Adj_R2 }}
+            </span>
+          </div>
+          <div style="background:rgba(255,255,255,0.06);border-radius:4px;height:10px;overflow:hidden">
+            <div style="
+              height:100%;
+              width:{{ (m.Adj_R2 * 100)|round|int }}%;
+              background:linear-gradient(90deg,var(--accent-blue),var(--accent-cyan));
+              border-radius:4px;
+              transition:width 1s ease;
+            "></div>
+          </div>
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted);text-align:center;padding:24px">
+          No metrics available — run the training pipeline first.
+        </p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Methodology summary -->
+  <div class="card fade-in">
+    <div class="card-header">
+      <span class="card-title">📋 Evaluation Methodology</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div>
+          <h3 style="font-size:0.9rem;color:var(--accent-blue);margin-bottom:10px">📐 Metrics Explained</h3>
+          <table style="font-size:0.83rem">
+            <thead>
+              <tr><th style="width:80px">Metric</th><th>Formula</th><th>Interpretation</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>MAE</td><td>mean|y−ŷ|</td><td>Average absolute error</td></tr>
+              <tr><td>RMSE</td><td>√mean(y−ŷ)²</td><td>Penalises large errors</td></tr>
+              <tr><td>MAPE</td><td>mean|y−ŷ|/y ×100</td><td>% error (scale-free)</td></tr>
+              <tr><td>SMAPE</td><td>Symmetric MAPE</td><td>Robust to near-zero</td></tr>
+              <tr><td>R²</td><td>1−SS_res/SS_tot</td><td>Variance explained</td></tr>
+              <tr><td>Adj R²</td><td>1−(1−R²)(n−1)/(n−k−1)</td><td>Penalises extra features</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h3 style="font-size:0.9rem;color:var(--accent-cyan);margin-bottom:10px">🔬 Evaluation Setup</h3>
+          <ul style="font-size:0.83rem;color:var(--text-secondary);line-height:2;padding-left:18px">
+            <li>Temporal train/test split (no data leakage)</li>
+            <li>Test set = last 20% of time-ordered data</li>
+            <li>XGBoost: TimeSeriesSplit 5-fold CV</li>
+            <li>LSTM: validation_split=0.1 on training data</li>
+            <li>ARIMA: ADF stationarity test before fit</li>
+            <li>All models evaluated on same test window</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderComparisonChart('comparisonChart');
+  renderRadarChart('radarChart');
+});
+</script>
+{% endblock %}

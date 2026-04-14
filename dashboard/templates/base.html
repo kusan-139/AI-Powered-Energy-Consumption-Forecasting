@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AI-Powered Energy Consumption Forecasting — ML dashboard using ARIMA, XGBoost, and LSTM." />
+  <title>{% block title %}⚡ Energy Forecasting{% endblock %}</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+  <!-- Global styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Navigation ─────────────────────────────────────── -->
+<nav class="navbar">
+  <a href="/" class="navbar-brand">
+    <div class="logo-icon">⚡</div>
+    <span class="brand-text">EnergyAI</span>
+  </a>
+
+  <ul class="navbar-nav">
+    <li>
+      <a href="/" id="nav-dashboard" class="{% if request.endpoint == 'index' %}active{% endif %}">
+        📊 Dashboard
+      </a>
+    </li>
+    <li>
+      <a href="/forecast" id="nav-forecast" class="{% if request.endpoint == 'forecast_page' %}active{% endif %}">
+        🔮 Forecast
+      </a>
+    </li>
+    <li>
+      <a href="/compare" id="nav-compare" class="{% if request.endpoint == 'compare_page' %}active{% endif %}">
+        🏆 Compare
+      </a>
+    </li>
+    <li>
+      <a href="/anomalies" id="nav-anomalies" class="{% if request.endpoint == 'anomalies_page' %}active{% endif %}">
+        🚨 Anomalies
+      </a>
+    </li>
+  </ul>
+
+  <div class="navbar-status">
+    <div class="status-dot"></div>
+    <span>Live Data</span>
+    <span style="margin-left:12px;color:var(--text-muted)">|</span>
+    <button class="btn btn-ghost" style="margin-left:8px;padding:6px 12px;font-size:0.8rem"
+            onclick="downloadReport()" id="downloadBtn">
+      📄 Report
+    </button>
+  </div>
+</nav>
+
+<!-- ── Page Content ────────────────────────────────────── -->
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ── Footer ─────────────────────────────────────────── -->
+<footer class="dashboard-footer">
+  ⚡ AI-Powered Energy Consumption Forecasting System &nbsp;|&nbsp;
+  Models: ARIMA · XGBoost · LSTM &nbsp;|&nbsp;
+  <a href="https://github.com/kusan-139" target="_blank" style="color:var(--accent-blue);text-decoration:none">GitHub ↗</a>
+</footer>
+
+<!-- Shared JS -->
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

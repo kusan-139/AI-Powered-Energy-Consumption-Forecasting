@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}🔮 Forecast — Energy Forecasting{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-header fade-in">
+    <h1>AI-Powered Forecasting</h1>
+    <p>Select a model and horizon to generate energy consumption forecasts</p>
+  </div>
+
+  <!-- Model selector -->
+  <div class="model-cards fade-in">
+    <div class="model-card selected" id="card-arima" onclick="selectModel('arima')">
+      <div style="font-size:1.8rem;margin-bottom:6px">📈</div>
+      <div class="model-name">ARIMA</div>
+      <div class="model-desc">Classical statistical baseline<br>SARIMA(1,1,1)(1,1,1,24)</div>
+      <div style="margin-top:8px">
+        <span class="badge badge-blue">R² 0.781</span>
+      </div>
+    </div>
+    <div class="model-card" id="card-xgboost" onclick="selectModel('xgboost')">
+      <div style="font-size:1.8rem;margin-bottom:6px">🌲</div>
+      <div class="model-name">XGBoost</div>
+      <div class="model-desc">Gradient boosting with<br>lag + calendar features</div>
+      <div style="margin-top:8px">
+        <span class="badge badge-green">R² 0.912</span>
+      </div>
+    </div>
+    <div class="model-card" id="card-lstm" onclick="selectModel('lstm')">
+      <div style="font-size:1.8rem;margin-bottom:6px">🧠</div>
+      <div class="model-name">LSTM</div>
+      <div class="model-desc">Deep learning sequence model<br>24h look-back window</div>
+      <div style="margin-top:8px">
+        <span class="badge badge-purple">R² 0.941</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card fade-in" style="margin-bottom:20px">
+    <div class="card-body" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px">
+        <label style="font-size:0.85rem;color:var(--text-secondary);font-weight:600">Horizon</label>
+        <select id="stepsSelect" onchange="updateForecast()">
+          <option value="24">24 hours (1 day)</option>
+          <option value="48" selected>48 hours (2 days)</option>
+          <option value="72">72 hours (3 days)</option>
+          <option value="168">168 hours (1 week)</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <label style="font-size:0.85rem;color:var(--text-secondary);font-weight:600">Selected Model</label>
+        <span class="badge badge-blue" id="selectedModelBadge">ARIMA</span>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px">
+        <button class="btn btn-ghost" onclick="exportForecastCSV()" id="exportBtn">
+          📥 Export CSV
+        </button>
+        <button class="btn btn-primary" onclick="updateForecast()">
+          ▶ Run Forecast
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forecast Chart -->
+  <div class="card fade-in" style="margin-bottom:20px">
+    <div class="card-header">
+      <span class="card-title">🔮 Forecast vs Actual</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge badge-blue" style="font-size:0.75rem">● Actual</span>
+        <span class="badge badge-green" style="font-size:0.75rem">● Forecast</span>
+        <span class="badge" style="background:rgba(0,245,212,0.1);color:var(--accent-cyan);font-size:0.75rem">
+          ▓ 95% CI
+        </span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="chart-container" style="height:400px">
+        <div id="forecastChart" style="height:100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forecast stats row -->
+  <div class="grid-3 fade-in" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:24px">
+        <div style="font-size:2rem;margin-bottom:6px">📉</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Forecast Min</div>
+        <div class="stat-value" id="forecastMin" style="font-size:1.4rem">—</div>
+        <div class="stat-unit">kW</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:24px">
+        <div style="font-size:2rem;margin-bottom:6px">📊</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Forecast Mean</div>
+        <div class="stat-value" id="forecastMean" style="font-size:1.4rem;color:var(--accent-blue)">—</div>
+        <div class="stat-unit">kW</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:24px">
+        <div style="font-size:2rem;margin-bottom:6px">📈</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Forecast Max</div>
+        <div class="stat-value" id="forecastMax" style="font-size:1.4rem;color:var(--accent-red)">—</div>
+        <div class="stat-unit">kW</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info card -->
+  <div class="card fade-in">
+    <div class="card-header">
+      <span class="card-title">ℹ️ Model Methodology</span>
+    </div>
+    <div class="card-body">
+      <div id="methodologyText" style="color:var(--text-secondary);font-size:0.88rem;line-height:1.8">
+        <!-- Populated by JS based on selected model -->
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let activeModel   = 'arima';
+let forecastData_ = null;
+
+const METHODOLOGY = {
+  arima  : `<b>ARIMA — AutoRegressive Integrated Moving Average</b><br>
+    The SARIMA(1,1,1)(1,1,1,24) model captures both non-seasonal (p=1,d=1,q=1) and seasonal (P=1,D=1,Q=1,s=24) components of hourly energy data.
+    Stationarity was verified using the Augmented Dickey-Fuller test before fitting.
+    Best for short-term (1–24h) forecasting where statistical patterns are stable.`,
+
+  xgboost: `<b>XGBoost — Extreme Gradient Boosting</b><br>
+    Treats forecasting as a supervised regression problem with 50+ engineered features:
+    lag values (1h, 2h, 6h, 12h, 24h, 48h, 168h), rolling statistics (3h, 6h, 24h windows),
+    calendar features (hour, dayofweek, month, season), cyclical encodings (sin/cos),
+    and temperature/occupancy interaction terms. Uses TimeSeriesSplit for validation.`,
+
+  lstm   : `<b>LSTM — Long Short-Term Memory Neural Network</b><br>
+    Two-layer stacked LSTM architecture: LSTM(128) → Dropout(0.2) → LSTM(64) → Dropout(0.2) → Dense(32) → Dense(1).
+    Uses a 24-hour sliding window as input, Huber loss for robustness to outliers,
+    Adam optimizer with ReduceLROnPlateau scheduling, and early stopping (patience=8).
+    Best for capturing complex long-range temporal dependencies.`,
+};
+
+function selectModel(model) {
+  activeModel = model;
+  document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(`card-${model}`).classList.add('selected');
+  document.getElementById('selectedModelBadge').textContent = model.toUpperCase();
+  document.getElementById('methodologyText').innerHTML = METHODOLOGY[model];
+  updateForecast();
+}
+
+async function updateForecast() {
+  const steps = parseInt(document.getElementById('stepsSelect').value);
+  await renderForecastChart('forecastChart', activeModel, steps);
+
+  // Update stats
+  try {
+    const data = await fetchJSON(`/api/forecast?model=${activeModel}&steps=${steps}`);
+    forecastData_ = data;
+    const vals = data.forecast_values;
+    const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+    document.getElementById('forecastMin').textContent  = Math.min(...vals).toFixed(3);
+    document.getElementById('forecastMean').textContent = mean.toFixed(3);
+    document.getElementById('forecastMax').textContent  = Math.max(...vals).toFixed(3);
+  } catch {}
+}
+
+function exportForecastCSV() {
+  if (!forecastData_) return;
+  const rows = [['Timestamp', 'Forecast_kW']];
+  forecastData_.forecast_timestamps.forEach((t, i) => {
+    rows.push([t, forecastData_.forecast_values[i]]);
+  });
+  const csv  = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href  = url;
+  a.download = `forecast_${activeModel}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  selectModel('arima');
+});
+</script>
+{% endblock %}
